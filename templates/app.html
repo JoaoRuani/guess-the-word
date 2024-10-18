@@ -1,0 +1,112 @@
+{% extends "base.html"%}
+{% block content %}
+    <div class="bg-white p-8 rounded-lg shadow-lg w-full max-w-lg">
+        <h1 class="text-2xl font-bold text-center mb-6">Guess the word</h1>
+        
+        <!-- Guess Input Form -->
+        <form id="guessForm" class="flex mb-4 flex-wrap flex-col sm:flex-row">
+            <input type="text" id="guessInput" placeholder="Enter your guess" class="flex-grow p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" required>
+            <div class="flex sm:justify-between justify-center sm:ml-4 items-center mt-4 sm:mt-0">
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Submit</button>
+                <button id="giveUpButton" class="bg-red-500 text-white px-4 py-2 ml-4 rounded-lg hover:bg-red-600">Give Up</button>
+            </div>
+
+        </form>
+
+        <!-- Success Message -->
+        <div id="successMessage" class="hidden text-green-600 font-bold text-center mb-4">
+            🎉 Congratulations! You found the word! 🎉
+        </div>
+      
+        <!-- Give up message -->
+        <div id="correctWordMessage" class="hidden text-red-600 font-bold text-center mt-4 mb-4">
+            The correct word was: <span id="correctWord"></span>
+        </div>
+
+        <!-- Ranking List -->
+        <div id="rankingList" class=" mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200 max-h-80 overflow-y-auto">
+            <h2 class="text-xl font-semibold mb-2">Previous Guesses</h2>
+            <ul id="guesses" class="list-none space-y-2">
+                <!-- Sample ranking items (to be filled dynamically) -->
+                <!-- Example: <li class="p-2 bg-gray-100 rounded-md">Word - Rank: 345</li> -->
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Sample script for handling guesses and adding to ranking list
+        const guessForm = document.getElementById('guessForm');
+        const guessInput = document.getElementById('guessInput');
+        const guessesList = document.getElementById('guesses');
+        const successMessage = document.getElementById('successMessage');
+        const giveUpButton = document.getElementById('giveUpButton');
+        const correctWordMessage = document.getElementById('correctWordMessage');
+        const correctWordDisplay = document.getElementById('correctWord');
+        
+        const guessData = [];
+
+        guessForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            const guess = guessInput.value.trim();
+
+            if (guess && guess.length > 3) {
+                fetch(`/guess?word=${guess}`)
+                .then(response => response.text())
+                .then(similarity => {
+                    const rank = Math.floor(Number(similarity) * 100);
+                   
+                    if (!rank) {
+                        alert('I don\'t know this word. Is it spelled correctly?');
+                        return;
+                    }
+                
+                    guessData.push({ guess, rank });
+
+                    renderGuesses();
+                    if (rank === 100) {
+                        successMessage.classList.remove('hidden');
+                        guessInput.setAttribute("readonly", "readonly");
+                    }
+
+                    // Clear the input
+                    guessInput.value = '';
+                })
+                .catch(reason => {
+                    alert('error');
+                })
+            }
+        });
+        
+        // Give Up Button Logic
+        giveUpButton.addEventListener('click', async function() {
+            // Reveal the correct word
+            response = await fetch('/giveup');
+            correctWord = await response.text();
+
+            correctWordDisplay.textContent = correctWord;
+            correctWordMessage.classList.remove('hidden');
+            guessInput.setAttribute("readonly", "readonly");
+            successMessage.classList.add('hidden');
+        });
+    
+        function renderGuesses() {
+            guessesList.innerHTML = '';
+            guessData.sort((a, b) => b.rank - a.rank);
+            guessData.forEach(item => {
+                const listItem = document.createElement('li');
+
+                // Set the background color based on the rank
+                if (item.rank < 50) {
+                    listItem.className = "p-2 bg-red-100 rounded-md";
+                } else if (item.rank >= 50 && item.rank <= 65) {
+                    listItem.className = "p-2 bg-yellow-100 rounded-md";
+                } else {
+                    listItem.className = "p-2 bg-green-100 rounded-md";
+                }
+
+                listItem.textContent = `${item.guess} - Rank: ${item.rank}`;
+                guessesList.appendChild(listItem);
+            });
+        }
+    </script>
+{% endblock %}
